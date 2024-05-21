@@ -29,7 +29,17 @@ pool.on('error', (err, client) => {
 
 app.get('/recipes', async (req, res) => {
     try {
-        const result = await pool.query('SELECT * FROM recipes');
+        const { search } = req.query;
+        console.log("Search term:", search); // Add this line for debugging
+        let query = 'SELECT * FROM recipes';
+        let params = [];
+
+        if (search) {
+            query += ' WHERE title ILIKE $1 OR ingredients ILIKE $1 OR instructions ILIKE $1';
+            params.push(`%${search}%`);
+        }
+
+        const result = await pool.query(query, params);
         res.json(result.rows);
     } catch (err) {
         console.error(err.message);
@@ -37,19 +47,6 @@ app.get('/recipes', async (req, res) => {
     }
 });
 
-app.get('/recipes', async (req, res) => {
-    try {
-        const search = req.query.search || '';
-        const result = await pool.query(
-            'SELECT * FROM recipes WHERE title ILIKE $1 OR ingredients ILIKE $1',
-            [`%${search}%`]
-        );
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-});
 
 app.post('/recipes', async (req, res) => {
     try {
