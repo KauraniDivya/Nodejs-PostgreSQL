@@ -37,34 +37,40 @@ app.get('/recipes', async (req, res) => {
     }
 });
 
-app.post('/recipes', async (req, res) => {
+app.get('/recipes', async (req, res) => {
     try {
-        const recipes = req.body; // Assuming req.body is an array of recipe objects
-        
-        if (!Array.isArray(recipes) || recipes.length === 0) {
-            return res.status(400).json({ error: 'No recipes provided' });
-        }
-        
-        const insertedRecipes = [];
-        for (let i = 0; i < recipes.length; i++) {
-            const { title, ingredients, instructions } = recipes[i];
-            if (!title || !ingredients || !instructions) {
-                return res.status(400).json({ error: `Recipe at index ${i} is missing required fields` });
-            }
-            
-            const result = await pool.query(
-                'INSERT INTO recipes (title, ingredients, instructions) VALUES ($1, $2, $3) RETURNING *',
-                [title, ingredients, instructions]
-            );
-            insertedRecipes.push(result.rows[0]);
-        }
-        
-        res.status(201).json({ message: 'Recipes added successfully', recipes: insertedRecipes });
+        const search = req.query.search || '';
+        const result = await pool.query(
+            'SELECT * FROM recipes WHERE title ILIKE $1 OR ingredients ILIKE $1',
+            [`%${search}%`]
+        );
+        res.json(result.rows);
     } catch (err) {
         console.error(err.message);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 });
+
+app.post('/recipes', async (req, res) => {
+    try {
+        const { title, ingredients, instructions } = req.body;
+        
+        if (!title || !ingredients || !instructions) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        
+        const result = await pool.query(
+            'INSERT INTO recipes (title, ingredients, instructions) VALUES ($1, $2, $3) RETURNING *',
+            [title, ingredients, instructions]
+        );
+        
+        res.status(201).json(result.rows[0]); // Return the newly added recipe
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).json({ error: 'Internal Server Error' });
+    }
+});
+
 
 app.put('/recipes/:id', async (req, res) => {
     try {
